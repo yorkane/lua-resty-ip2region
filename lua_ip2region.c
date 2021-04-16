@@ -21,12 +21,13 @@ static int lua_ip2region_new(lua_State *L)
 
     /* Check the arguments are valid */
     dbFile = luaL_checkstring(L, 1);
-    if ( dbFile == NULL ) {
+    if (dbFile == NULL)
+    {
         luaL_error(L, "dbFile cannot be empty");
     }
 
     /* Create the user data and push it onto the stack */
-    self = (ip2region_entry *) lua_newuserdata(L, sizeof(ip2region_entry));
+    self = (ip2region_entry *)lua_newuserdata(L, sizeof(ip2region_entry));
     /* Push the metatable onto the stack */
     luaL_getmetatable(L, L_METATABLE_NAME);
     /* Set the metatable on the userdata */
@@ -42,31 +43,52 @@ static int lua_ip2region_new(lua_State *L)
 static int lua_ip2region_destroy(lua_State *L)
 {
     ip2region_entry *self;
-    self = (ip2region_entry *) luaL_checkudata(L, 1, L_METATABLE_NAME);
+    self = (ip2region_entry *)luaL_checkudata(L, 1, L_METATABLE_NAME);
     ip2region_destroy(self);
 
     return 0;
 }
 
+#define get_search_long_args(L, entry, ip)                                       \
+    do                                                                           \
+    {                                                                            \
+        luaL_argcheck(L, lua_gettop(L) == 2, 2, "Object and ip address needed"); \
+        entry = (ip2region_entry *)luaL_checkudata(L, 1, L_METATABLE_NAME);      \
+        ip = luaL_checklong(L, 2);                                               \
+    } while (0);
 
+#define get_search_args(L, entry, ip)                                            \
+    do                                                                           \
+    {                                                                            \
+        luaL_argcheck(L, lua_gettop(L) == 2, 2, "Object and ip address needed"); \
+        entry = (ip2region_entry *)luaL_checkudata(L, 1, L_METATABLE_NAME);      \
+        ip = luaL_checkstring(L, 2);                                             \
+    } while (0);
 
-#define get_search_args(L, entry, ip) \
-do {    \
-    luaL_argcheck(L, lua_gettop(L) == 2, 2, "Object and ip address needed"); \
-    entry = (ip2region_entry *) luaL_checkudata(L, 1, L_METATABLE_NAME); \
-    ip = luaL_checkstring(L, 2);  \
-} while (0); \
+#define set_search_result(L, data)             \
+    do                                         \
+    {                                          \
+        lua_newtable(L);                       \
+        lua_pushinteger(L, data.city_id);      \
+        lua_setfield(L, -2, "city_id");        \
+        lua_pushfstring(L, "%s", data.region); \
+        lua_setfield(L, -2, "region");         \
+    } while (0);
 
-
-#define set_search_result(L, data) \
-do { \
-    lua_newtable(L); \
-    lua_pushinteger(L, data.city_id); \
-    lua_setfield(L, -2, "city_id"); \
-    lua_pushfstring(L, "%s", data.region); \
-    lua_setfield(L, -2, "region"); \
-} while (0); \
-
+static int lua_ip2region_search_long(lua_State *L)
+{
+    ip2region_entry *self;
+    const long *addr;
+    datablock_entry data;
+    get_search_long_args(L, self, addr);
+    if (ip2region_memory_search(self, addr, &data) == 0)
+    {
+        lua_pushnil(L);
+        return 1;
+    }
+    set_search_result(L, data);
+    return 1;
+}
 
 /** ip2region_memory_search wrapper */
 static int lua_ip2region_memory_search(lua_State *L)
@@ -74,7 +96,6 @@ static int lua_ip2region_memory_search(lua_State *L)
     ip2region_entry *self;
     const char *addr;
     datablock_entry data;
-
     // luaL_argcheck(L, lua_gettop(L) == 2, 2, "object and ip address needed");
     // self = (ip2region_entry *) luaL_checkudata(L, 1, L_METATABLE_NAME);
     // addr = luaL_checkstring(L, 2);
@@ -82,11 +103,12 @@ static int lua_ip2region_memory_search(lua_State *L)
     get_search_args(L, self, addr);
 
     /* do the memory search */
-    if ( ip2region_memory_search(self, ip2long(addr), &data) == 0 ) {
+    if (ip2region_memory_search(self, ip2long(addr), &data) == 0)
+    {
         lua_pushnil(L);
         return 1;
     }
-    
+
     // lua_newtable(L);
     // lua_pushinteger(L, data.city_id);
     // lua_setfield(L, -2, "city_id");
@@ -108,7 +130,8 @@ static int lua_ip2region_binary_search(lua_State *L)
     get_search_args(L, self, addr);
 
     /* Do the binary search */
-    if ( ip2region_binary_search(self, ip2long(addr), &data) == 0 ) {
+    if (ip2region_binary_search(self, ip2long(addr), &data) == 0)
+    {
         lua_pushnil(L);
         return 1;
     }
@@ -130,7 +153,8 @@ static int lua_ip2region_btree_search(lua_State *L)
     get_search_args(L, self, addr);
 
     /* Do the btree search */
-    if ( ip2region_btree_search(self, ip2long(addr), &data) == 0 ) {
+    if (ip2region_btree_search(self, ip2long(addr), &data) == 0)
+    {
         lua_pushnil(L);
         return 1;
     }
@@ -141,7 +165,6 @@ static int lua_ip2region_btree_search(lua_State *L)
     return 1;
 }
 
-
 /** ip2long wrapper */
 static int lua_ip2long(lua_State *L)
 {
@@ -150,14 +173,18 @@ static int lua_ip2long(lua_State *L)
     uint_t ipval;
 
     argc = lua_gettop(L);
-    if ( argc == 1 ) {
+    if (argc == 1)
+    {
         addr = luaL_checkstring(L, 1);
-    } else {
+    }
+    else
+    {
         luaL_checkudata(L, 1, L_METATABLE_NAME);
         addr = luaL_checkstring(L, 2);
     }
 
-    if ( (ipval = ip2long(addr)) == 0 ) {
+    if ((ipval = ip2long(addr)) == 0)
+    {
         lua_pushnil(L);
         return 1;
     }
@@ -170,38 +197,36 @@ static int lua_ip2long(lua_State *L)
 static int lua_ip2region_tostring(lua_State *L)
 {
     ip2region_entry *self;
-    self = (ip2region_entry *) luaL_checkudata(L, 1, L_METATABLE_NAME);
+    self = (ip2region_entry *)luaL_checkudata(L, 1, L_METATABLE_NAME);
 
     /* Push the string to return to lua */
-    lua_pushfstring(L, 
-        "dbFile=%s, headerLen=%d, fristIndexPtr=%d, lastIndexPtr=%d, totalBlocks=%d",
-        self->dbFile, self->headerLen, self->firstIndexPtr,
-        self->lastIndexPtr, self->totalBlocks
-    );
+    lua_pushfstring(L,
+                    "dbFile=%s, headerLen=%d, fristIndexPtr=%d, lastIndexPtr=%d, totalBlocks=%d",
+                    self->dbFile, self->headerLen, self->firstIndexPtr,
+                    self->lastIndexPtr, self->totalBlocks);
 
     return 1;
 }
-
 
 /** module method array */
 static const struct luaL_Reg ip2region_methods[] = {
     // { "new",            lua_ip2region_new },
     // { "ip2long",        lua_ip2long },
-    { "memorySearch",   lua_ip2region_memory_search },
-    { "binarySearch",   lua_ip2region_binary_search },
-    { "btreeSearch",    lua_ip2region_btree_search },
-    { "close",          lua_ip2region_destroy },
-    { "__gc",           lua_ip2region_destroy },
-    { "__tostring",     lua_ip2region_tostring },
-    { NULL, NULL },
+    {"searchLong", lua_ip2region_search_long},
+    {"memorySearch", lua_ip2region_memory_search},
+    {"binarySearch", lua_ip2region_binary_search},
+    {"btreeSearch", lua_ip2region_btree_search},
+    {"close", lua_ip2region_destroy},
+    {"__gc", lua_ip2region_destroy},
+    {"__tostring", lua_ip2region_tostring},
+    {NULL, NULL},
 };
 
 /** module function array */
 static const struct luaL_Reg ip2region_functions[] = {
-    { "new",        lua_ip2region_new },
-    { "ip2long",    lua_ip2long },
-    { NULL, NULL }
-};
+    {"new", lua_ip2region_new},
+    {"ip2long", lua_ip2long},
+    {NULL, NULL}};
 
 /** module open function interface */
 int luaopen_Ip2region(lua_State *L)
@@ -216,7 +241,6 @@ int luaopen_Ip2region(lua_State *L)
      * so we set the metatable to the table itself.
     */
     lua_setfield(L, -2, "__index");
-
 
     /* Set the methods fo the metatable that could and should be 
      * access via object:func in lua block 
