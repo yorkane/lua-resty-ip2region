@@ -17,10 +17,8 @@ local _M = { instance = inst }
 function _M.init(db_path, region_csv_path)
 	local err
 	if not inst then
-		inst, err = ipr.new('/usr/local/openresty/site/lualib/ip2region.db')
-		dump(ipr, inst, err)
-		inst:memorySearch('1.1.1.1') -- make global thread safe
-		dump(inst:memorySearch('1.1.1.1'), ipr, inst, err)
+		inst, err = ipr.new(db_path or '/usr/local/openresty/site/ip2region.db')
+		inst:memorySearch('1.1.1.1') -- search instantly to prevent errors in next usage
 	end
 	return inst or err
 end
